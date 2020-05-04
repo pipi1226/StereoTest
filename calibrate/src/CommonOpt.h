@@ -21,6 +21,39 @@ using namespace cv;
 
 extern int g_iSignal;
 
+extern int g_iLeft;
+extern int g_iRight;
+
+extern int grid_lb[MAX_9GRID][4];
+extern int grid_orig_lb[MAX_9GRID][4];
+extern _st_config_param g_config;
+
+// thread processing...
+// 9 grid method...
+extern float g_avg[MAX_9GRID];
+extern float g_avgdot[MAX_9GRID];
+extern float g_score[MAX_9GRID];
+extern float g_sumdist[MAX_9GRID];
+extern int g_iSumDot[MAX_9GRID];
+extern int g_iDots[MAX_9GRID];
+
+extern int g_iBestRegNo;
+extern float g_fMaxDist;
+
+extern int g_iIndex[MAX_9GRID];
+
+extern Mat g_ll[MAX_9GRID];
+extern Mat g_rr[MAX_9GRID];
+extern Mat g_disp[MAX_9GRID+1];
+extern Mat g_norm_disp[MAX_9GRID+1];
+extern Mat g_clr_disp[MAX_9GRID];
+extern Mat g_ptArr[MAX_9GRID+1];
+
+extern matchStereos g_matches[MAX_9GRID+1];
+
+// 9 grid: process 9 subpart pictures signal variables
+extern sem_t sem_id[MAX_9GRID];
+extern sem_t sem_main_ids[MAX_9GRID];
 
 // add by yyq [2017-0221]
 extern sem_t sem_cap_id[2];
@@ -29,7 +62,13 @@ extern sem_t sem_cap_release_id[2];
 extern pthread_mutex_t mutex[MAX_9GRID + 1];
 extern pthread_mutex_t avg_mutex[MAX_9GRID];
 
-
+/*
+ * add by yyq [2017-0317]
+ * */
+// window name
+extern String strWndname;
+extern String strLeftWndname;
+extern String strRightWndname;
 
 /*
  * set 9grid boaders

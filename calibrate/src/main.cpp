@@ -13,64 +13,7 @@ using namespace std;
 #include "stereo_calib.h"
 using namespace cv;
 
-VideoWriter videoWriteLeft, videoWriteRight;
-VideoCapture cap1, cap2;
-Mat frameL, frameR;
-
-
-bool bwrite = false;
-bool bterminate = false;
-
-int iLeft = 0, iRight = 0;
-
-// left thread
-void *getleftframe(void *arg)
-{
-    while (1)
-    {
-        if (bterminate == true)
-            break;
-        cap1 >> frameL;
-        iLeft = 1;
-        usleep(100);
-    }
-
-    return ((void *)0);
-}
-
-// right thread
-void *getrightframe(void *arg)
-{
-
-    while (1)
-    {
-        if (bterminate == true)
-            break;
-        cap2 >> frameR; // get a new frame from camera
-        iRight = 1;
-        usleep(100);
-    }
-
-    pthread_exit(NULL);
-}
-
-// right thread
-void *getsavesignal(void *arg)
-{
-    int itest = 0;
-    while (1)
-    {
-        cin >> itest; // get a new frame from camera
-        if(itest == 1)
-        {
-            bwrite = true;
-        }
-        if(itest == 3)
-            bterminate = true;
-    }
-
-    pthread_exit(NULL);
-}
+#include "writeVideo.h"
 
 
 int main(int argc, const char** argv)
@@ -78,183 +21,33 @@ int main(int argc, const char** argv)
 
     getParameters(g_config);
 
-    if (g_config.iCapture == WRITEVIDEO ||
-        g_config.iCapture == WRITEPIC)
+    switch(g_config.iCapture)
     {
-
-        pthread_t tid1,tid2, tid3;
-        int err;
-        void *tret;
-
-        cap1.open(g_config.iportl);
-        cap2.open(g_config.iportr);
-
-
-        if(!cap1.isOpened())
+        case WRITE_VIDEO:
         {
-            cout << "cap1 open failed!" << endl;
-            return 0;
+            writeVideo();
+            break;
         }
-
-        if (!cap2.isOpened())// check if we succeeded
+        case WRITE_PIC:
         {
-            cout << "cap2 open failed!" << endl;
-            return 0;
+            writePicture();
+            break;
         }
-
-        // frame setting
-
-        cap1.set(CV_CAP_PROP_FRAME_WIDTH, g_config.iImgWid);
-        cap1.set(CV_CAP_PROP_FRAME_HEIGHT, g_config.iImgHei);
-
-        cap2.set(CV_CAP_PROP_FRAME_WIDTH, g_config.iImgWid);
-        cap2.set(CV_CAP_PROP_FRAME_HEIGHT, g_config.iImgHei);
-
-        // write video
-        if(g_config.iCapture == WRITEVIDEO)
+        case CALIBRATE:
         {
-            if (!videoWriteLeft.isOpened())
-            {
-                videoWriteLeft.open(g_config.strLeftVideo, VideoWriter::fourcc('x','v','i','d'), 24,
-                                    Size(g_config.iImgWid, g_config.iImgHei), true);
-                if (!videoWriteLeft.isOpened())
-                {
-                    printf("can't create video writer\n");
-                    return 0;
-                }
-                // throw std::runtime_error("can't create video writer");
-            }
-
-            if (!videoWriteRight.isOpened())
-            {
-                videoWriteRight.open(g_config.strRightVideo, VideoWriter::fourcc('x','v','i','d'), 24,
-                                     Size(g_config.iImgWid, g_config.iImgHei), true);
-                if (!videoWriteRight.isOpened())
-                {
-                    printf("can't create video writer\n");
-                    return 0;
-                }
-                // throw std::runtime_error("can't create video writer");
-            }
-
-
+            stereo_calibrate();
+            break;
         }
-
-        namedWindow("VideoLeft", 1);
-        namedWindow("VideoRight", 1);
-
-        if(g_config.iCapture == WRITEPIC)
+        case READ_VIDEO_INTO_PIC:
         {
-            err=pthread_create(&tid3,NULL, getsavesignal, NULL);//创建线程
-            if(err!=0)
-            {
-                printf("save frame pthread_create error:%s\n",strerror(err));
-                exit(-1);
-            }
+            readVideoIntoPic();
+            break;
         }
+        default:
+            break;
 
-        int iInit = 0;
-
-        int ipiccnt = 1;
-
-        bool bOpen = false;
-        ofstream examplefile(g_config.strOut_filename);
-        if (examplefile.is_open())
-        {
-            bOpen = true;
-        }
-
-        int itest = 0;
-        const char *ptPath = g_config.strFolderPath;
-
-        // show image
-        while (1)
-        {
-
-            cap1 >> frameL;
-            cap2 >> frameR;
-
-            imshow("VideoLeft", frameL);
-            imshow("VideoRight", frameR);
-
-            //for(int i = 0; i < 1000; ++i) printf("%dth picture cnt = %d", ipiccnt, i);
-            if (g_config.iCapture == WRITEVIDEO)
-            {
-                videoWriteLeft << frameL;
-                videoWriteRight << frameR;
-
-            }
-            else
-            {
-                if (bwrite)
-                {
-                    printf("write left and right picture\n");
-                    char strL[32], strR[32];
-                    memset(strL, 0, 32);
-                    memset(strR, 0, 32);
-
-                    // sprintf(strL, "%s/left%02d.jpg", ptPath, ipiccnt);
-                    // sprintf(strR, "%s/right%02d.jpg", ptPath, ipiccnt);
-
-                    Mat mleft(frameL), mright(frameR);
-                    sprintf(strL, "left%02d.jpg", ipiccnt);
-                    imwrite(strL, mleft);
-
-                    sprintf(strR, "right%02d.jpg", ipiccnt);
-                    imwrite(strR, mright);
-
-                    printf("leftpicname = %s\nssss\n", strL);
-                    printf("rightpicname = %s\n", strR);
-                    examplefile << "\"" << strL << "\"" << endl;
-                    examplefile << "\"" << strR << "\"" << endl;
-                    ipiccnt += 1;
-                    bwrite = false;
-                }
-
-                iInit += 1;
-
-            }
-
-            int iRe = waitKey(10);
-            if (iRe == 27)
-            {
-                bterminate = true;
-                break;
-            }
-
-        }
-
-        if(bOpen)
-        {
-            examplefile.close();
-        }
-
-        if(g_config.iCapture == WRITEPIC)
-        {
-            err=pthread_join(tid3,&tret);
-            if(err!=0)
-            {
-                printf("can not join with thread3:%s\n",strerror(err));
-                exit(-1);
-            }
-            printf("thread 3 exit code %d\n", 0);
-        }
-
-        // Release the camera or video file
-        cap1.release();
-        cap2.release();
-
-        if(g_config.iCapture == WRITEVIDEO)
-        {
-            videoWriteLeft.release();
-            videoWriteRight.release();
-        }
-        destroyAllWindows();
-    }
-    else if (g_config.iCapture == CALIBRATE)
-    {
-        stereo_calibrate();
     }
 
+    cout << "exit()..." << endl;
     return 0;
 }

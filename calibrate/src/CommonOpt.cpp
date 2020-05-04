@@ -48,6 +48,14 @@ int grid_orig_lb[MAX_9GRID][4] = {{0, 0, 105, 79}, {106, 0, 211, 79}, {212, 0, 3
                              {0, 80, 105, 159}, {106, 80, 211, 159}, {212, 80, 319, 159},    // 3, 4, 5
                              {0, 160, 105, 239}, {106, 160, 211, 239}, {212, 160, 319, 239}};   // 6, 7, 8
 
+/*
+ * add by yyq [2017-0317]
+ * */
+// window name
+String strWndname = "disparity";
+String strLeftWndname = "VideoLeft";
+String strRightWndname = "VideoRight";
+
 
 /*
  * 获取9宫格坐标
@@ -203,7 +211,7 @@ void *getleftframe(void *arg)
     while (1)
     {
 
-        // printf("getleftframe() before catch ... \n");
+        printf("getleftframe() before catch ... \n");
         caps->catchLeftFrame(tmp);
         g_iLeft = 1;
 
@@ -211,10 +219,11 @@ void *getleftframe(void *arg)
         {
             caps->writeLeftMat(tmp);
         }
-        // printf("getleftframe() after catch ... \n");
+        printf("getleftframe() after catch ... \n");
+        printf("sem_cap_id[0] post ... \n");
         sem_post(&sem_cap_id[0]);
 
-        // printf("getleftframe() wait ... \n");
+        printf("sem_cap_release_id[0] wait ... \n");
         sem_wait(&sem_cap_release_id[0]);
         if(g_iSignal == 1)break;
     }
@@ -236,7 +245,7 @@ void *getrightframe(void *arg)
     while (1)
     {
 
-        // printf("getrightframe() before catch ... \n");
+        printf("getrightframe() before catch ... \n");
         caps->catchRightFrame(tmp); // get a new frame from camera
         g_iRight = 1;
 
@@ -246,10 +255,10 @@ void *getrightframe(void *arg)
             caps->writeRightMat(tmp);
         }
 
-        // printf("getrightframe() after catch ... \n");
+        printf("sem_cap_id[1] post ... \n");
         sem_post(&sem_cap_id[1]);
 
-        // printf("getrightframe() wait ... \n");
+        printf("sem_cap_release_id[1] wait ... \n");
         sem_wait(&sem_cap_release_id[1]);
 
         if(g_iSignal == 1)break;

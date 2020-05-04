@@ -37,6 +37,8 @@
 #include <ctype.h>
 #include "stereo_calib.h"
 
+#include "CommonOpt.h"
+
 using namespace cv;
 using namespace std;
 
@@ -342,7 +344,7 @@ StereoCalib(const vector<string>& imagelist, Size boardSize,bool displayCorners 
     }
 }
 
-
+/*
 static bool readStringList( const string& filename, vector<string>& l )
 {
     l.resize(0);
@@ -357,6 +359,7 @@ static bool readStringList( const string& filename, vector<string>& l )
         l.push_back((string)*it);
     return true;
 }
+ */
 
 int stereo_calibrate()
 {
