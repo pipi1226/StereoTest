@@ -28,6 +28,8 @@ void *getleftframe(void *arg)
 {
     while (1)
     {
+        if (bterminate == true)
+            break;
         cap1 >> frameL;
         iLeft = 1;
         usleep(100);
@@ -42,12 +44,14 @@ void *getrightframe(void *arg)
 
     while (1)
     {
+        if (bterminate == true)
+            break;
         cap2 >> frameR; // get a new frame from camera
         iRight = 1;
         usleep(100);
     }
 
-    return ((void *)0);
+    pthread_exit(NULL);
 }
 
 // right thread
@@ -65,7 +69,7 @@ void *getsavesignal(void *arg)
             bterminate = true;
     }
 
-    return ((void *)0);
+    pthread_exit(NULL);
 }
 
 
@@ -139,33 +143,19 @@ int main(int argc, const char** argv)
         namedWindow("VideoLeft", 1);
         namedWindow("VideoRight", 1);
 
-        err=pthread_create(&tid1,NULL, getleftframe, NULL);//创建线程
-        if(err!=0)
+        if(g_config.iCapture == WRITEPIC)
         {
-            printf("left frame catch pthread_create error:%s\n",strerror(err));
-            exit(-1);
+            err=pthread_create(&tid3,NULL, getsavesignal, NULL);//创建线程
+            if(err!=0)
+            {
+                printf("save frame pthread_create error:%s\n",strerror(err));
+                exit(-1);
+            }
         }
-
-
-        err=pthread_create(&tid2,NULL, getrightframe, NULL);
-        if(err!=0)
-        {
-            printf("right frame catch pthread_create error:%s\n",strerror(err));
-            exit(-1);
-        }
-
-        err=pthread_create(&tid3,NULL, getsavesignal, NULL);//创建线程
-        if(err!=0)
-        {
-            printf("save frame pthread_create error:%s\n",strerror(err));
-            exit(-1);
-        }
-
 
         int iInit = 0;
 
         int ipiccnt = 1;
-
 
         bool bOpen = false;
         ofstream examplefile(g_config.strOut_filename);
@@ -180,66 +170,58 @@ int main(int argc, const char** argv)
         // show image
         while (1)
         {
-            //if(bterminate)
-            //  break;
 
-            if (iLeft == 1 && iRight == 1)
+            cap1 >> frameL;
+            cap2 >> frameR;
+
+            imshow("VideoLeft", frameL);
+            imshow("VideoRight", frameR);
+
+            //for(int i = 0; i < 1000; ++i) printf("%dth picture cnt = %d", ipiccnt, i);
+            if (g_config.iCapture == WRITEVIDEO)
             {
-                imshow("VideoLeft", frameL);
-                imshow("VideoRight", frameR);
-
-                //for(int i = 0; i < 1000; ++i) printf("%dth picture cnt = %d", ipiccnt, i);
-                if (g_config.iCapture == WRITEVIDEO)
-                {
-                    videoWriteLeft << frameL;
-                    videoWriteRight << frameR;
-
-                    if (waitKey(10) == 27) break;
-                }
-                else
-                {
-                    if (bwrite)
-                    {
-                        printf("write left and right picture\n");
-                        char strL[32], strR[32];
-                        memset(strL, 0, 32);
-                        memset(strR, 0, 32);
-
-
-                        // sprintf(strL, "%s/left%02d.jpg", ptPath, ipiccnt);
-
-                        // sprintf(strR, "%s/right%02d.jpg", ptPath, ipiccnt);
-
-                        Mat mleft(frameL), mright(frameR);
-                        sprintf(strL, "left%02d.jpg", ipiccnt);
-                        imwrite(strL, mleft);
-
-                        sprintf(strR, "right%02d.jpg", ipiccnt);
-                        imwrite(strR, mright);
-
-                        printf("leftpicname = %s\nssss\n", strL);
-                        printf("rightpicname = %s\n", strR);
-                        examplefile << "\"" << strL << "\"" << endl;
-                        examplefile << "\"" << strR << "\"" << endl;
-                        ipiccnt += 1;
-                        bwrite = false;
-                    }
-
-
-                    iInit += 1;
-
-                    usleep(100);
-                    if (waitKey(30) == 27) break;
-                }
-
+                videoWriteLeft << frameL;
+                videoWriteRight << frameR;
 
             }
             else
             {
-                for(int i = 0; i < 1000; i++);
+                if (bwrite)
+                {
+                    printf("write left and right picture\n");
+                    char strL[32], strR[32];
+                    memset(strL, 0, 32);
+                    memset(strR, 0, 32);
+
+                    // sprintf(strL, "%s/left%02d.jpg", ptPath, ipiccnt);
+                    // sprintf(strR, "%s/right%02d.jpg", ptPath, ipiccnt);
+
+                    Mat mleft(frameL), mright(frameR);
+                    sprintf(strL, "left%02d.jpg", ipiccnt);
+                    imwrite(strL, mleft);
+
+                    sprintf(strR, "right%02d.jpg", ipiccnt);
+                    imwrite(strR, mright);
+
+                    printf("leftpicname = %s\nssss\n", strL);
+                    printf("rightpicname = %s\n", strR);
+                    examplefile << "\"" << strL << "\"" << endl;
+                    examplefile << "\"" << strR << "\"" << endl;
+                    ipiccnt += 1;
+                    bwrite = false;
+                }
+
+                iInit += 1;
+
             }
-            if (bterminate == true)
+
+            int iRe = waitKey(10);
+            if (iRe == 27)
+            {
+                bterminate = true;
                 break;
+            }
+
         }
 
         if(bOpen)
@@ -247,30 +229,16 @@ int main(int argc, const char** argv)
             examplefile.close();
         }
 
-        err=pthread_join(tid1,&tret);//阻塞等待线程id为tid1的线程，直到该线程退出
-        if(err!=0)
+        if(g_config.iCapture == WRITEPIC)
         {
-            printf("can not join with thread1:%s\n",strerror(err));
-            exit(-1);
+            err=pthread_join(tid3,&tret);
+            if(err!=0)
+            {
+                printf("can not join with thread3:%s\n",strerror(err));
+                exit(-1);
+            }
+            printf("thread 3 exit code %d\n", 0);
         }
-        printf("thread 1 exit code %d\n", 0);
-
-
-        err=pthread_join(tid2,&tret);
-        if(err!=0)
-        {
-            printf("can not join with thread2:%s\n",strerror(err));
-            exit(-1);
-        }
-        printf("thread 2 exit code %d\n", 0);
-
-        err=pthread_join(tid3,&tret);
-        if(err!=0)
-        {
-            printf("can not join with thread3:%s\n",strerror(err));
-            exit(-1);
-        }
-        printf("thread 3 exit code %d\n", 0);
 
         // Release the camera or video file
         cap1.release();
